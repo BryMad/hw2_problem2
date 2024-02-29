@@ -1,0 +1,127 @@
+canadianPostalCode {
+        code  = alpha digit alpha " " digit alpha digit
+        alpha = "A".."C" | "E" | "G".."H" | "J".."N" | "P" | "R".."T" | "V".."Z"
+        }
+
+visa {
+        card = "4" digit15 | "4" digit12
+        digit15 = digit digit digit digit digit digit digit digit digit digit digit digit digit digit digit 
+        digit12 = digit digit digit digit digit digit digit digit digit digit digit digit 
+        }
+
+masterCard{
+        card  = "5" "1".."5" digit14 | "2" "2".."7" digit14
+        digit14 = digit digit digit digit digit digit digit digit digit digit digit digit digit digit
+        }
+
+  // Strings of Unicode letters except those strings that are exactly three letters ending with two Latin letter o’s, of any case.
+notThreeEndingInOO{
+        word = letter ~(("oO" | "Oo" | "oo" | "OO")end) letter* --nonempty | end
+        }
+
+divisibleBy16 { 
+        binary  = "0"+
+                | (~("0000" end) bit)+  "0000" --nonzero
+        bit = "0" | "1"
+        }
+
+eightThroughThirtyTwo {
+        number  = "8".."9" 
+        | "1".."2" digit --tensandtwenties
+        | "3" "0".."2"  --thirties
+}
+
+notPythonPycharmPyc{
+        file = ~(("python" | "pycharm" | "pyc") end) letter*
+        }
+  // Floating point constants that are allowed to have an empty fractional part,
+  // but whose exponent part is required and can have no more than three digits
+  // in the exponent part
+  //   good: ["1e0", "235e9", "1.0e1", "1.0e+122", "55e20"],
+  //     bad: ["3.5E9999", "2.355e-9991", "1e2210"],
+  // ! "empty fractional part"? e+122 vs e no plus?
+  // tutorial, overview,
+  restrictedFloats: String.raw`
+  float = digit* (".")? digit* "e" ("+" | "-")? digit digit? digit?
+  `,
+  // Palindromes over the letters a, b, and c, of length 2, 3, 5, or 8
+  // 1234 5678
+  // 12 3 45
+  // 1 2 3
+  // 1 2
+  // good: [
+  //   "aa",
+  //   "bb",
+  //   "cc",
+  //   "aaa",
+  //   "aba",
+  //   "aca",
+  //   "bab",
+  //   "bbb",
+  //   "ababa",
+  //   "abcba",
+  //   "aaaaaaaa",
+  //   "abaaaaba",
+  //   "cbcbbcbc",
+  // ],
+  // bad: ["", "a", "ab", "abc", "abbbb", "cbcbcbcb"],
+  palindromes2358: String.raw`
+  palindrome = eightCharPalindrome
+            | fiveCharPalindrome
+            | threeCharPalindrome
+            | twoCharPalindrome
+  eightCharPalindrome = "a" sixCharPalindrome "a" | "b" sixCharPalindrome "b" | "c" sixCharPalindrome "c"
+  sixCharPalindrome = "a" fourCharPalindrome "a" | "b" fourCharPalindrome "b" | "c" fourCharPalindrome "c"
+  fiveCharPalindrome = "a" threeCharPalindrome "a" | "b" threeCharPalindrome "b" | "c" threeCharPalindrome "c" 
+  fourCharPalindrome = "a" twoCharPalindrome "a" | "b" twoCharPalindrome "b" | "c" twoCharPalindrome "c"
+  threeCharPalindrome = "a" dontcare "a" | "b" dontcare "b" | "c" dontcare "c"
+  twoCharPalindrome = "aa" | "bb" | "cc"
+  dontcare = "a" | "b" | "c"
+  `,
+  // stringliteral   ::=  [stringprefix](shortstring | longstring)
+  // stringprefix    ::=  "r" | "u" | "R" | "U" | "f" | "F"
+  //                      | "fr" | "Fr" | "fR" | "FR" | "rf" | "rF" | "Rf" | "RF"
+  // shortstring     ::=  "'" shortstringitem* "'" | '"' shortstringitem* '"'
+  // longstring      ::=  "'''" longstringitem* "'''" | '"""' longstringitem* '"""'
+  // shortstringitem ::=  shortstringchar | stringescapeseq
+  // longstringitem  ::=  longstringchar | stringescapeseq
+  // shortstringchar ::=  <any source character except "\" or newline or the quote>
+  // longstringchar  ::=  <any source character except "\">
+  // stringescapeseq ::=  "\" <any source character>
+  pythonStringLiterals: String.raw`
+  stringliteral = stringprefix? (shortstring | longstring)
+  stringprefix = "r" | "u" | "R" | "U" | "f" | "F"
+               | "fr" | "Fr" | "fR" | "FR" | "rf" | "rF" | "Rf" | "RF"
+  longstring = "\'\'\'" longstringitem* "\'\'\'" | "\"\"\"" longstringitem* "\"\"\"" 
+  shortstring = "\'"shortstringitem* "\'" | "\"" shortstringitem* "\""
+  shortstringitem = shortstringchar | stringescapeseq
+  longstringitem = longstringchar | stringescapeseq
+  shortstringchar = ~("\\" | "\n" | "\'" | "\"") any
+  longstringchar = ~("\\") any
+  stringescapeseq = "\\" any
+  `,
+};
+
+export function matches(name, string) {
+  const grammar = `G {${grammars[name]}}`;
+  return ohm.grammar(grammar).match(string).succeeded();
+}
+
+// stringliteral = stringprefix? (shortstring | longstring)
+//   stringprefix = "r" | "u" | "R" | "U" | "f" | "F"
+//                | "fr" | "Fr" | "fR" | "FR" | "rf" | "rF" | "Rf" | "RF"
+//   shortstring = singlequoteshortstring | doublequoteshortstring
+//   longstring = singlequotelongstring | doublequotelongstring
+
+//   singlequoteshortstring = "\'" shortstringitem* "\'"
+//   doublequoteshortstring = "\"" shortstringitem* "\""
+//   singlequotelongstring = "\'\'\'" longstringitem* "\'\'\'"
+//   doublequotelongstring = "\"\"\"" longstringitem* "\"\"\""
+
+//   shortstringitem = shortstringchar | stringescapeseq
+//   longstringitem = longstringchar | longstringescapeseq | stringescapeseq
+
+//   shortstringchar = ~("\\" | "\n" | "\'" | "\"") any
+//   longstringchar = ~("\\") any
+//   stringescapeseq = "\\" any
+//   longstringescapeseq = "\\\'\'\'" | "\\\"\"\"" //
